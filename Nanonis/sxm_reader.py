@@ -30,7 +30,7 @@ def header_reader(fname):
                         line
                         ):
                 header_end = True
-            elif re.match(':.+:', # ':.+:' is the Nanonis .sxm file header regex, fuck.
+            elif re.match(':.+:', # ':.+:' is the Nanonis .sxm file header entry regex, fuck.
                           line
                           ):
                 key = line[1:-2] # Read header_entry
@@ -46,11 +46,11 @@ def header_reader(fname):
 def header_reform(header):
     """ 
     Reform the header which is obtained from NANONIS .sxm file.
-
+    
     Parameter
     ---------
     header : header dict
-
+    
     Returns
     -------
     header : reformed header dict
@@ -137,7 +137,6 @@ def header_reform(header):
     CONTROLLER_INFO = {}
     for o in range(len(Controller_config[0])):
         CONTROLLER_INFO[Controller_config[0][o]] = Controller_config[1][o]
-
     # Substitute table dict
     for p in range(len(table)):
         header.pop(table[p])
@@ -191,10 +190,10 @@ def channels_counts(header):
     Parameter
     ---------
     header : reformed .sxm file header
-     
-     Return
-     ------
-     dimension : return dimension of raw_data (tuple)
+    
+    Return
+    ------
+    dimension : return dimension of raw_data (tuple)
     '''
     
     channels = header['CHANNEL_INFO']
