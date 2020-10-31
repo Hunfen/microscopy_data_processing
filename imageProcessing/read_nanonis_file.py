@@ -16,6 +16,7 @@ def read_nanonis_file(file_path):
         Dictionary of data
 
     """
+    self.file_path = file_path
 
     file_path = os.path.abspath(file_path)
     folder, filename = os.path.split(file_path)
