@@ -36,9 +36,9 @@ def header_reader(fname):
                 key = line[1:-2] # Read header_entry
                 content = ''     # Clear 
             else:
-                content += line
+                contents += line
                 # remove EOL
-                header[key] = content.strip('\n') 
+                header[key] = contents.strip('\n') 
     return header
 
 
