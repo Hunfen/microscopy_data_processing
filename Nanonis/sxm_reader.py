@@ -1,12 +1,46 @@
-import h5py
-import numpy as np
-import pyUSID as usid
-import matplotlib.pyplot as plt
-import sidpy
 import re
 
+import matplotlib.pyplot as plt
+import numpy as np
+
+# read_sxm_file
+def sxm_read(fname):
+    ''' 
+    Read the .sxm data
+    
+    Parameter
+    ---------
+    fname : .sxm file path
+    
+    Returns
+    -------
+    header : reshaped .sxm file header(dict)
+    raw_data : reshaped .sxm file dataset(np.array)
+    dimension : dimension of dataset    
+    '''
+    
+    header = sxm_header_reform(sxm_header_reader(fname))
+    dimension = channels_counts(header)
+    # read data
+    with open(fname, 'rb') as f:
+        file = f.read() # read the whole file into buffer
+        # .sxm file header is end with \x1A\x04
+        offset = file.find('\x1A\x04'.encode(encoding = 'utf-8'))
+        f.seek(offset + 2) # Data starts 2 bytes after header end
+        # read all data from file, MSB first
+        data = np.fromfile(f, dtype = '>f')
+        # reshape the based on header information
+        raw_data = data.reshape(dimension)
+        # flip if there are two directions
+        if dimension[1] == 2:
+            for i in range(len(raw_data)):
+                for j in range(len(raw_data[i])):
+                    if not j % 2 == 0:
+                        raw_data[i][j] = np.fliplr(raw_data[i][j])
+    return header, raw_data, dimension
+
 # read sxm file header
-def header_reader(fname):
+def sxm_header_reader(fname):
     '''
     Read the sxm file header into dictionary. Header entries
     as dict keys, and header contents as dict values.
@@ -26,15 +60,11 @@ def header_reader(fname):
     with open(fname, 'rb') as f:
         while not header_end:
             line = f.readline().decode(encoding = 'utf-8', errors = 'replace')
-            if re.match(':SCANIT_END:\n',
-                        line
-                        ):
+            if re.match(':SCANIT_END:\n', line):
                 header_end = True
-            elif re.match(':.+:', # ':.+:' is the Nanonis .sxm file header entry regex, fuck.
-                          line
-                          ):
+            elif re.match(':.+:', line): # ':.+:' is the Nanonis .sxm file header entry regex, fuck.
                 key = line[1:-2] # Read header_entry
-                content = ''     # Clear 
+                contents = ''     # Clear 
             else:
                 contents += line
                 # remove EOL
@@ -43,7 +73,7 @@ def header_reader(fname):
 
 
 # Header reform
-def header_reform(header):
+def sxm_header_reform(header):
     """ 
     Reform the header which is obtained from NANONIS .sxm file.
     
@@ -145,43 +175,6 @@ def header_reform(header):
     header['CHANNEL_INFO'] = CHANNEL_INFO
     
     return header
-
-
-# read_sxm_file
-def sxm_read(fname):
-    ''' 
-    Read the .sxm data
-    
-    Parameter
-    ---------
-    fname : .sxm file path
-    
-    Returns
-    -------
-    header : reshaped .sxm file header(dict)
-    raw_data : reshaped .sxm file dataset(np.array)
-    dimension : dimension of dataset    
-    '''
-    
-    header = header_reform(header_reader(fname))
-    dimension = channels_counts(header)
-    # read data
-    with open(fname, 'rb') as f:
-        file = f.read() # read the whole file into buffer
-        # .sxm file header is end with \x1A\x04
-        offset = file.find('\x1A\x04'.encode(encoding = 'utf-8'))
-        f.seek(offset + 2) # Data starts 2 bytes after header end
-        # read all data from file, MSB first
-        data = np.fromfile(f, dtype = '>f')
-        # reshape the based on header information
-        raw_data = data.reshape(dimension)
-        # flip if there are two directions
-        if dimension[1] == 2:
-            for i in range(len(raw_data)):
-                for j in range(len(raw_data[i])):
-                    if not j % 2 == 0:
-                        raw_data[i][j] = np.fliplr(raw_data[i][j])
-    return header, raw_data, dimension
 
 def channels_counts(header):
     '''
