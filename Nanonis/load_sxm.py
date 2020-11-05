@@ -1,4 +1,4 @@
- 
+
 # -*- coding: utf-8 -*-
 """
  
@@ -55,8 +55,8 @@ a beer in return.
     - Felix Wählisch
     
 """
- 
- 
+
+
 import numpy as N
 import pylab as P
 import os
@@ -64,30 +64,31 @@ import re
 import string
 import struct
 from scipy import optimize
- 
+
+
 class NanonisAFM:
     ''' data contains:
         fname           filename
         infos           dictionary with all header entries
         datachannels    array of the datachannels in datachannel class format
     '''
-    
+
     def __init__(self, fname=''):
         ''' creates empty class and asks for file to process if not given '''
         self.signals = []
         self.infos = {}
         self.fname = ''
         if fname == '':
-            #your custom ask for file 
+            # your custom ask for file
             print "init(): please program me!"
-        elif fname == '': 
-            print "selection aborted"            
+        elif fname == '':
+            print "selection aborted"
             return
         else:
             self.fname = fname
             print "file: ", os.path.split(self.fname)[1]
             self.readin()
- 
+
     def _checkfile(self):
         '''inherit with some reality-checks that verify a good filename. It is recommended to run this after selecting self.fname'''
         if self.fname.endswith('.sxm'):
@@ -95,13 +96,13 @@ class NanonisAFM:
         else:
             print "wrong file ending (not .sxm)", self.fname
             return False
-    
+
     def readin(self):
         if not self._checkfile():
             return -1
         self._read_header()
         self._read_body()
-    
+
     def _read_body(self):
         '''The binary data begins after the header and is introduced by the (hex) code \1A\04. 
         According to SCANIT_TYPE the data is encoded in 4 byte big endian floats. 
@@ -111,10 +112,11 @@ class NanonisAFM:
         of the scanfield (forward scan). On a down-scan, it is the upper 
         left corner of the scanfield. 
         Hence, backward scan data start on the right side of the scanfield.'''
-        ## extract channes to be read in        
+        # extract channes to be read in
         data_info = self.infos['DATA_INFO']
         lines = string.split(data_info, '\n')
-        lines.pop(0) #headers: Channel    Name      Unit        Direction                Calibration               Offset
+        # headers: Channel    Name      Unit        Direction                Calibration               Offset
+        lines.pop(0)
         names = []
         units = []
         for line in lines:
@@ -125,63 +127,66 @@ class NanonisAFM:
                 if entries[3] != 'both':
                     print "warning, only one direction recorded, expect a crash :D", entries
         print names
-        ## extract lines, pixels
+        # extract lines, pixels
         #xPixels = int(self.infos['Scan>pixels/line'])
         #yPixels = int(self.infos['Scan>lines'])
         xPixels, yPixels = string.split(self.infos['SCAN_PIXELS'])
         xPixels = int(xPixels)
         yPixels = int(yPixels)
-        ## find position in file      
-        fhandle = open(self.fname, 'rb') #read binary        
+        # find position in file
+        fhandle = open(self.fname, 'rb')  # read binary
         read_all = fhandle.read()
         offset = read_all.find('\x1A\x04')
         print('found start at {}'.format(offset))
-        fhandle.seek(offset+2) #data start 2 bytes afterwards
+        fhandle.seek(offset+2)  # data start 2 bytes afterwards
         ## read in data
-        fmt = '>f' #float
+        fmt = '>f'  # float
         ItemSize = struct.calcsize(fmt)
-        for i in range(len(names)*2): #fwd+bwd
-            if i%2 == 0:
+        for i in range(len(names)*2):  # fwd+bwd
+            if i % 2 == 0:
                 direction = '_fwd'
             else:
                 direction = '_bwd'
             bindata = fhandle.read(ItemSize*xPixels*yPixels)
             data = N.zeros(xPixels*yPixels)
             for j in range(xPixels*yPixels):
-                data[j] = struct.unpack(fmt, bindata[j*ItemSize: j*ItemSize+ItemSize])[0]
+                data[j] = struct.unpack(
+                    fmt, bindata[j*ItemSize: j*ItemSize+ItemSize])[0]
             data = data.reshape(yPixels, xPixels)
             data = N.rot90(data)
             if direction == '_bwd':
                 data = data[::-1]
-            channel = Datachannel(name=names[i/2]+direction, data=data, unit=units[i/2])
+            channel = Datachannel(
+                name=names[i/2]+direction, data=data, unit=units[i/2])
             print channel.name, channel.unit, channel.data.shape
             self.signals.append(channel)
         fhandle.close()
- 
+
     def _read_header(self):
-       ''' reads the header and adds to info dictionary - ready for further parsing as needed'''
-       header_ended = False
-       fhandle = open(self.fname, 'r')
-       caption = re.compile(':*:')
-       key = ''
-       contents = ''
-       while not header_ended:
-           line = fhandle.readline()
-           if line == ":SCANIT_END:\n": ## check for end of header
-               header_ended = True
-               self.infos[key] = contents
-               ## two blank lines
-               fhandle.readline(); fhandle.readline()
-           else:
-               if caption.match(line) != None: ## if it is a caption
-                   if key != '': #avoid 1st run problems
-                       self.infos[key] = contents
-                   key = line[1:-2] #set new name
-                   contents = '' #reset contents
-               else: #if not caption, it is content
-                   contents+=(line)
-       fhandle.close()
- 
+        ''' reads the header and adds to info dictionary - ready for further parsing as needed'''
+        header_ended = False
+        fhandle = open(self.fname, 'r')
+        caption = re.compile(':*:')
+        key = ''
+        contents = ''
+        while not header_ended:
+            line = fhandle.readline()
+            if line == ":SCANIT_END:\n":  # check for end of header
+                header_ended = True
+                self.infos[key] = contents
+                # two blank lines
+                fhandle.readline()
+                fhandle.readline()
+            else:
+                if caption.match(line) != None:  # if it is a caption
+                    if key != '':  # avoid 1st run problems
+                        self.infos[key] = contents
+                    key = line[1:-2]  # set new name
+                    contents = ''  # reset contents
+                else:  # if not caption, it is content
+                    contents += (line)
+        fhandle.close()
+
     def create_img(self, nametag, clim=(None, None)):
         '''puts out images of signals whose name contains the nametag.
         adjust your color bar by using clim(lower, upper)'''
@@ -189,8 +194,8 @@ class NanonisAFM:
         x_len = float(x_len)
         y_len = float(y_len)
         # if you change to nm, also change the labels further below (;
-        x_len *= 1.0e6 #um
-        y_len *= 1.0e6 #um
+        x_len *= 1.0e6  # um
+        y_len *= 1.0e6  # um
         for i in self.signals:
             if nametag in i.name:
                 print "create_img(): creating", i.name, "image..."
@@ -198,34 +203,38 @@ class NanonisAFM:
                 ax = P.subplot(111)
                 z = N.fliplr(N.rot90(i.data, k=1))
                 if i.unit != 'V':
-                    z=z*1.0e9
-                    i.unit='n'+i.unit
+                    z = z*1.0e9
+                    i.unit = 'n'+i.unit
                 P.imshow(z, origin="lower", cmap=P.cm.YlOrBr_r, aspect='auto')
-                #ticker adjustment
-                (yi,xi)    =    z.shape 
-                #get old x-labels, create new ones
-                x_ticks      =    N.int_(N.round( N.linspace(0,  xi-1, len(ax.axes.get_xticklabels()) ) ))
-                x_tlabels    =           N.round( N.linspace(0, x_len, len(ax.axes.get_xticklabels()) ), decimals=2)
+                # ticker adjustment
+                (yi, xi) = z.shape
+                # get old x-labels, create new ones
+                x_ticks = N.int_(
+                    N.round(N.linspace(0,  xi-1, len(ax.axes.get_xticklabels()))))
+                x_tlabels = N.round(N.linspace(0, x_len, len(
+                    ax.axes.get_xticklabels())), decimals=2)
                 ax.axes.set_xticks(x_ticks)
                 ax.axes.set_xticklabels(x_tlabels)
-                P.xlim(0,xi-1) #plots from 0 to p-1, so only show that
-                P.xlabel("X [um]") 
-                #get old y-labels, create new ones, note reverse axis ticks
-                y_ticks      =    N.int_(N.round( N.linspace(0,  yi-1, len(ax.axes.get_yticklabels()) ) ))
-                y_tlabels    =          N.round( N.linspace(0, y_len,  len(ax.axes.get_yticklabels()) ) , decimals=2)
+                P.xlim(0, xi-1)  # plots from 0 to p-1, so only show that
+                P.xlabel("X [um]")
+                # get old y-labels, create new ones, note reverse axis ticks
+                y_ticks = N.int_(
+                    N.round(N.linspace(0,  yi-1, len(ax.axes.get_yticklabels()))))
+                y_tlabels = N.round(N.linspace(0, y_len,  len(
+                    ax.axes.get_yticklabels())), decimals=2)
                 ax.axes.set_yticks(y_ticks)
                 ax.axes.set_yticklabels(y_tlabels)
-                P.ylim(0,yi-1) #plots from 0 to p-1, so only show that
+                P.ylim(0, yi-1)  # plots from 0 to p-1, so only show that
                 P.ylabel("Y [um]")
-                if clim != (None,None):
-                    P.clim(clim[0],clim[1])
+                if clim != (None, None):
+                    P.clim(clim[0], clim[1])
                 bar = P.colorbar(shrink=0.7)
                 bar.set_label(i.name+' ['+i.unit+']')
                 P.title(os.path.split(self.fname)[1][:-4])
                 P.draw()
                 P.savefig(self.fname[:-4]+'_'+i.name+'.png', transparent=True)
                 P.close()
-    
+
     def substract_1Dfit(self, deg=1):
         '''substracts a line by line fit from all data
         degree = 0 offset fit        
@@ -237,20 +246,20 @@ class NanonisAFM:
             data = i.data
             res = Fit.poly_line_by_line(data, deg, axis=1)
             i.data = data-res
-        return 0  
-          
+        return 0
+
     def substract_2Dfit(self, deg=2):
         '''substracts something like a 2D fit from all data
         degree: 1- plane substract
                 2- parabolic substract'''
-        if deg not in range(1,3,1): #goes to n-1
+        if deg not in range(1, 3, 1):  # goes to n-1
             print "substract_2Dfit(): unknown degree of fit, abort..."
             return-1
-        Fit = fit()        
+        Fit = fit()
         for i in self.signals:
             data = i.data
-            #fit parameters initial values     
-            if deg == 1:            
+            # fit parameters initial values
+            if deg == 1:
                 params = Fit.fitplane(data)
                 fit_func = Fit.return_plane(params, data)
             if deg == 2:
@@ -258,7 +267,7 @@ class NanonisAFM:
                 fit_func = Fit.return_parabolic(params, data)
             i.data = data-fit_func
         return 0
-    
+
     def friction_signal(self, ignore_large_img=True):
         ''' calculates Horiz._Deflection fwd - bwd / 2.0 and appends the Friction channel to the signals.
         Returns Friction.data. Ignores large images by default due to hysteresis.
@@ -270,19 +279,19 @@ class NanonisAFM:
                 fwd = i.data
             if i.name == "Horiz._Deflection_bwd":
                 bwd = i.data
-                unit = i.unit #unit of both channels is supposed to be same
+                unit = i.unit  # unit of both channels is supposed to be same
             if i.name == 'Friction':
                 print "friction_signal(): Friction channel already exists, aborting..."
                 return -1
         if fwd == None or bwd == None:
             print "friction_signal(): could not find all signals needed, aborted."
             return -1
-        #ignore large images due to hysteresis
+        # ignore large images due to hysteresis
         x_len, y_len = string.split(self.infos['SCAN_RANGE'])
         x_len = float(x_len)
         y_len = float(y_len)
-        x_len *= 1.0e6 #um
-        y_len *= 1.0e6 #um
+        x_len *= 1.0e6  # um
+        y_len *= 1.0e6  # um
         if x_len > 30.0 or y_len > 30.0:
             if not ignore_large_img:
                 print "friction_signal(): warning, the friction signal might be shadowed due to large scan range and hysteresis!"
@@ -290,39 +299,42 @@ class NanonisAFM:
                 print "friction_signal(): friction signal is not created due to image size"
                 return -1
         print "friction_signal(): creating Friction channel."
-        frict = Datachannel(data=(fwd-bwd)/2.0, name='Friction', desc='horiz. deflection (fwd-bwd)/2', unit=unit)
+        frict = Datachannel(data=(fwd-bwd)/2.0, name='Friction',
+                            desc='horiz. deflection (fwd-bwd)/2', unit=unit)
         self.signals.append(frict)
         return frict.data
-        
- 
+
+
 class Datachannel:
     '''data and their description...'''
-    unit    =    ""                ## unit of the channel
-    name    =    ""                ## name of the channel
-    desc    =    ""                ## description / additional info
-    data    =    N.array([])        ## data in the channel
-    
+    unit = ""  # unit of the channel
+    name = ""  # name of the channel
+    desc = ""  # description / additional info
+    data = N.array([])  # data in the channel
+
     def __init__(self, unit="", name="", desc="", data=""):
-        self.unit    =    str(unit)
-        self.name    =    str(name)
-        self.desc    =    str(desc)
-        self.data    =    N.array(data)
- 
-    
+        self.unit = str(unit)
+        self.name = str(name)
+        self.desc = str(desc)
+        self.data = N.array(data)
+
+
 class fit:
     """ 2D Fit Functions """
+
     def __init__(self):
         return
-        
-    ####################################    
+
+    ####################################
     """ taken from the Scipy Cookbook - gauss is not used from Nanonis AFM"""
-    def gaussian(self,height, center_x, center_y, width_x, width_y):
+
+    def gaussian(self, height, center_x, center_y, width_x, width_y):
         """Returns a gaussian function with the given parameters"""
         width_x = float(width_x)
         width_y = float(width_y)
-        return lambda x,y: height*N.exp(
-                    -(((center_x-x)/width_x)**2+((center_y-y)/width_y)**2)/2)
-    
+        return lambda x, y: height*N.exp(
+            -(((center_x-x)/width_x)**2+((center_y-y)/width_y)**2)/2)
+
     def gaussmoments(self, data):
         """Returns (height, x, y, width_x, width_y)
         the gaussian parameters of a 2D distribution by calculating its
@@ -337,22 +349,23 @@ class fit:
         width_y = N.sqrt(abs((N.arange(row.size)-x)**2*row).sum()/row.sum())
         height = data.max()
         return height, x, y, width_x, width_y
-    
+
     def fitgaussian(self, data):
         """Returns (height, x, y, width_x, width_y)
         the gaussian parameters of a 2D distribution found by a fit"""
         params = self.gaussmoments(data)
-        errorfunction = lambda p: N.ravel(self.gaussian(*p)(*N.indices(data.shape)) -
-                                     data)
+        def errorfunction(p): return N.ravel(self.gaussian(*p)(*N.indices(data.shape)) -
+                                             data)
         p, success = optimize.leastsq(errorfunction, params)
         return p
-    ####################################    
-    def parabolic (self, a0,a1,a2,b1,b2,x0,y0):
+    ####################################
+
+    def parabolic(self, a0, a1, a2, b1, b2, x0, y0):
         '''could also do slope and plain - wow! used by substract_2Dfit'''
-        return lambda x,y: a0 + a1*(x-x0) + a2*(x-x0)**2 + b1*(y-y0) + b2*(y-y0)**2
- 
+        return lambda x, y: a0 + a1*(x-x0) + a2*(x-x0)**2 + b1*(y-y0) + b2*(y-y0)**2
+
     def parabolicmoments(self, data):
-        '''to be filled...'''  
+        '''to be filled...'''
         a0 = abs(data).min()
         index = (data-a0).argmin()
         x, y = data.shape
@@ -363,21 +376,23 @@ class fit:
         b1 = 0.0
         b2 = 0.0
         return a0, a1, a2, b1, b2, x0, y0
-        
+
     def fitparabolic(self, data):
         params = self.parabolicmoments(data)
-        errorfunction = lambda p: N.ravel(self.parabolic(*p)(*N.indices(data.shape)) - data)
+        def errorfunction(p): return N.ravel(
+            self.parabolic(*p)(*N.indices(data.shape)) - data)
         p, success = optimize.leastsq(errorfunction, params)
         return p
-    
+
     def return_parabolic(self, params, data):
         ''' returns an 2D array of the parabolic fit with the shape of data'''
         fit_data = self.parabolic(*params)
-        return fit_data(*N.indices(data.shape))        
-    ####################################    
+        return fit_data(*N.indices(data.shape))
+    ####################################
+
     def plane(self, a0, a1, b1, x0, y0):
-        return lambda x,y: a0 +a1*(x-x0) +b1*(y-y0)
-        
+        return lambda x, y: a0 + a1*(x-x0) + b1*(y-y0)
+
     def planemoments(self, data):
         a0 = N.abs(data).min()
         index = (data-a0).argmin()
@@ -387,38 +402,39 @@ class fit:
         a1 = 0.0
         b1 = 0.0
         return a0, a1, b1, x0, y0
- 
+
     def fitplane(self, data):
         params = self.planemoments(data)
-        errorfunction = lambda p: N.ravel(self.plane(*p)(*N.indices(data.shape)) - data)
+        def errorfunction(p): return N.ravel(
+            self.plane(*p)(*N.indices(data.shape)) - data)
         p, success = optimize.leastsq(errorfunction, params)
         return p
-        
+
     def return_plane(self, params, data):
         fit_data = self.plane(*params)
         return fit_data(*N.indices(data.shape))
-    
+
     ####################################
     def poly_line_by_line(self, data, deg=1, axis=0):
         '''takes data, degree for polynomial line-by-line fitting, 
         axis to fit along
         returns fitted surface'''
-        if axis == 1: #turn data around
+        if axis == 1:  # turn data around
             data = N.rot90(data)
-            
+
         surface = N.zeros(data.shape)
         x = range(data.shape[1])
         for i in range(len(data)):
-            p = N.polyfit(x,data[i],deg)
+            p = N.polyfit(x, data[i], deg)
             surface[i] = N.polyval(p, x)
-        
-        if axis == 1: #turn results back around
+
+        if axis == 1:  # turn results back around
             surface = N.rot90(surface, k=3)
         return surface
- 
- 
-## FINALLY - HERE IS YOUR EXAMPLE - Batch-Processing a whole folder
-## and get some images automatically.          
+
+
+# FINALLY - HERE IS YOUR EXAMPLE - Batch-Processing a whole folder
+# and get some images automatically.
 if __name__ == '__main__':
     # type in your directory to test
     directory = r"Z:\Directory"
@@ -427,10 +443,10 @@ if __name__ == '__main__':
     for fname in files:
         if fname.endswith(".sxm"):
             a = NanonisAFM(fname)
-            #a.friction_signal()
-            #a.create_img(nametag='Friction')
-            #a.substract_2Dfit(deg=1)
-            #a.create_img(nametag="Horiz")
+            # a.friction_signal()
+            # a.create_img(nametag='Friction')
+            # a.substract_2Dfit(deg=1)
+            # a.create_img(nametag="Horiz")
             a.substract_2Dfit(deg=2)
             a.create_img(nametag="Z_fwd")
             print '\n'

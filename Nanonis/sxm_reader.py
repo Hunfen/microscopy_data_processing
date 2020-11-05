@@ -3,6 +3,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 # read_sxm_file
 def sxm_read(fname):
     ''' 
@@ -201,3 +202,4 @@ def channels_counts(header):
         counts = 1
     dimension = (len(keys), counts, int(header['Scan>pixels/line']), int(header['Scan>lines']))
     return dimension
+
