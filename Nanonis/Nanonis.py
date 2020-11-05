@@ -18,7 +18,6 @@ class __NanonisFile_sxm__:
     """
     Nanonis File Class
     """
-
     def __init__(self, f_path):
         self.file_path = os.path.split(f_path)[0]
         self.fname = os.path.split(f_path)[1]
@@ -26,7 +25,6 @@ class __NanonisFile_sxm__:
         self.__sxm_header_reform__(self.raw_header)
         self.__sxm_channel_counts__(self.header)
         self.__sxm_data_reader__(f_path, self.header)
-        
 
     def __sxm_header_reader__(self, f_path):
         key = ''
@@ -41,7 +39,7 @@ class __NanonisFile_sxm__:
                 # ':.+:' is the Nanonis .sxm file header entry regex, fuck.
                 elif re.match(':.+:', line):
                     key = line[1:-2]  # Read header_entry
-                    contents = ''     # Clear
+                    contents = ''  # Clear
                 else:
                     contents += line
                     # remove EOL
@@ -49,39 +47,22 @@ class __NanonisFile_sxm__:
         self.raw_header = raw_header
 
     def __sxm_header_reform__(self, raw_header):
-        scan_info_float = ['BIAS',
-                           'ACQ_TIME',
-                           'Scan>pixels/line',
-                           'Scan>lines',
-                           'Scan>speed forw. (m/s)',
-                           'Scan>speed backw. (m/s)'
-                           ]
-        table = ['Scan>Scanfield',
-                 'Z-CONTROLLER',
-                 'DATA_INFO'
-                 ]
-        scan_field_key = ['X_OFFSET',
-                          'Y_OFFSET',
-                          'X_RANGE',
-                          'Y_RANGE',
-                          'ANGLE'
-                          ]
-        trash_bin = ['NANONIS_VERSION',
-                     'SCANIT_TYPE',
-                     'REC_TEMP',
-                     'SCAN_PIXELS',
-                     'SCAN_TIME',
-                     'SCAN_RANGE',
-                     'SCAN_OFFSET',
-                     'SCAN_ANGLE',
-                     'Scan>channels'
-                     ]
-        scan_info_str = ['REC_DATE',
-                         'REC_TIME',
-                         'SCAN_FILE',
-                         'SCAN_DIR',
-                         'COMMENT'
-                         ]
+        scan_info_float = [
+            'ACQ_TIME', 'BIAS', 'Scan>lines', 'Scan>pixels/line',
+            'Scan>speed backw. (m/s)', 'Scan>speed forw. (m/s)'
+        ]
+        table = ['DATA_INFO', 'Scan>Scanfield', 'Z-CONTROLLER']
+        scan_field_key = [
+            'ANGLE', 'X_OFFSET', 'X_RANGE', 'Y_OFFSET', 'Y_RANGE'
+        ]
+        trash_bin = [
+            'NANONIS_VERSION', 'REC_TEMP', 'SCANIT_TYPE', 'SCAN_ANGLE',
+            'SCAN_OFFSET', 'SCAN_PIXELS', 'SCAN_RANGE', 'SCAN_TIME',
+            'Scan>channels'
+        ]
+        scan_info_str = [
+            'COMMENT', 'REC_DATE', 'REC_TIME', 'SCAN_DIR', 'SCAN_FILE'
+        ]
         header_dict = {}
         keys = list(raw_header.keys())
         # content = ''
@@ -93,8 +74,8 @@ class __NanonisFile_sxm__:
                 header_dict[keys[i]] = raw_header[keys[i]]
         # Clear redundant space in scan_info_str
         for j in range(len(scan_info_str)):
-            header_dict[scan_info_str[j]
-                        ] = header_dict[scan_info_str[j]].strip(' ')
+            header_dict[scan_info_str[j]] = header_dict[
+                scan_info_str[j]].strip(' ')
         # # Transform scan_info_float from str to float
         for k in range(len(scan_info_float)):
             header_dict[scan_info_float[k]] = float(
@@ -150,8 +131,8 @@ class __NanonisFile_sxm__:
                 num_channels += 2
             else:
                 num_channels += 1
-        dims = (num_channels, int(
-            header['Scan>pixels/line']), int(header['Scan>lines']))
+        dims = (num_channels, int(header['Scan>pixels/line']),
+                int(header['Scan>lines']))
         self.num_channels = num_channels
         self.dims = dims
 
@@ -166,15 +147,18 @@ class __NanonisFile_sxm__:
         # dimension check
         check = False
         for i in range(len(header['CHANNEL_INFO'])):
-            if header['CHANNEL_INFO'][list(header['CHANNEL_INFO'].keys())[i]]['Direction'] == 'both':
+            if header['CHANNEL_INFO'][list(
+                    header['CHANNEL_INFO'].keys())[i]]['Direction'] == 'both':
                 check = True
                 break
         if check:
-            data_shaped = data.reshape((len(header['CHANNEL_INFO']), 2, int(
-                math.sqrt(data.size / 4)), int(math.sqrt(data.size / 4))))
+            data_shaped = data.reshape(
+                (len(header['CHANNEL_INFO']), 2, int(math.sqrt(data.size / 4)),
+                 int(math.sqrt(data.size / 4))))
         else:
-            data_shaped = data.reshape((len(header['CHANNEL_INFO']), 1, int(
-                math.sqrt(data.size / 4)), int(math.sqrt(data.size / 4))))
+            data_shaped = data.reshape(
+                (len(header['CHANNEL_INFO']), 1, int(math.sqrt(data.size / 4)),
+                 int(math.sqrt(data.size / 4))))
         for i in range(len(data_shaped)):
             for j in range(len(data_shaped[i])):
                 if not j % 2 == 0:
@@ -208,15 +192,10 @@ class __NanonisFile_dat__:
 
     def __dat_header_reform__(self, raw_header):
         header_str = []
-        trash_bin = ['',
-                     'Cutoff frq',
-                     'Date',
-                     'Experiment',
-                     'Filter type',
-                     'Final Z (m)',
-                     'Order',
-                     'User'
-                     ]
+        trash_bin = [
+            '', 'Cutoff frq', 'Date', 'Experiment', 'Filter type',
+            'Final Z (m)', 'Order', 'User'
+        ]
         for i in range(len(raw_header)):
             header_str.append(raw_header[i].strip('\n'))
         for j in range(len(header_str)):
