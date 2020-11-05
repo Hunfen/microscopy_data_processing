@@ -24,7 +24,9 @@ class __NanonisFile_sxm__:
         self.fname = os.path.split(f_path)[1]
         self.__sxm_header_reader__(f_path)
         self.__sxm_header_reform__(self.raw_header)
-        self.num_channels, self.dims = self.__sxm_channel_counts__(self.header)
+        self.__sxm_channel_counts__(self.header)
+        self.__sxm_data_reader__(f_path, self.header)
+        
 
     def __sxm_header_reader__(self, f_path):
         key = ''
@@ -150,7 +152,8 @@ class __NanonisFile_sxm__:
                 num_channels += 1
         dims = (num_channels, int(
             header['Scan>pixels/line']), int(header['Scan>lines']))
-        return num_channels, dims
+        self.num_channels = num_channels
+        self.dims = dims
 
     def __sxm_data_reader__(self, f_path, header):
         # Find the start of data
@@ -176,7 +179,7 @@ class __NanonisFile_sxm__:
             for j in range(len(data_shaped[i])):
                 if not j % 2 == 0:
                     data_shaped[i][j] = np.fliplr(data_shaped[i][j])
-        return data_shaped
+        self.data = data_shaped
 
 
 class __NanonisFile_dat__:
