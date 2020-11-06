@@ -53,7 +53,7 @@ class __NanonisFile_sxm__:
         ]
         table = ['DATA_INFO', 'Scan>Scanfield', 'Z-CONTROLLER']
         scan_field_key = [
-            'ANGLE', 'X_OFFSET', 'X_RANGE', 'Y_OFFSET', 'Y_RANGE'
+            'X_OFFSET', 'Y_OFFSET', 'X_RANGE', 'Y_RANGE', 'ANGLE'
         ]
         trash_bin = [
             'NANONIS_VERSION', 'REC_TEMP', 'SCANIT_TYPE', 'SCAN_ANGLE',
@@ -227,8 +227,9 @@ class __NanonisFile_dat__:
                     break
                 else:
                     continue
-        data_list = data_str.split('\n')
-        del data_list[-1]
-        for i in range(len(data_list)):
-            data_list[i] = data_list[i].split('\t')
+        # Notification: data_str type changed
+        data_str = data_str.split('\n')
+        del data_str[-1]
+        for i in range(len(data_str)):
+            data_list.append(data_str[i].split('\t'))
         self.data = np.array(data_list).astype(float)
