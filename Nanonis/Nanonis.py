@@ -52,6 +52,7 @@ class __NanonisFile_sxm__:
             'Scan>speed backw. (m/s)', 'Scan>speed forw. (m/s)'
         ]
         table = ['DATA_INFO', 'Scan>Scanfield', 'Z-CONTROLLER']
+        # The order of scan_field_key should not be changed
         scan_field_key = [
             'X_OFFSET', 'Y_OFFSET', 'X_RANGE', 'Y_RANGE', 'ANGLE'
         ]
@@ -65,10 +66,9 @@ class __NanonisFile_sxm__:
         ]
         header_dict = {}
         keys = list(raw_header.keys())
-        # content = ''
         for i in range(len(keys)):
-            # Clear redundant header entries
             if keys[i] in trash_bin:
+                # Abandon redundant header entries
                 continue
             else:
                 header_dict[keys[i]] = raw_header[keys[i]]
