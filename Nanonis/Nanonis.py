@@ -12,6 +12,12 @@ def read_file(f_path):
         return __NanonisFile_dat__(f_path)
     else:
         print("File type not supported.")
+    # switch = {'.sxm': lambda x:__NanonisFile_sxm__(x),
+    #           '.dat': lambda x:__NanonisFile_dat__(x)}
+    # try:
+    #     switch[os.path.splitext(f_path)[1]](f_path)
+    # except KeyError as e:
+    #     print('File type not supported.')
 
 
 class __NanonisFile_sxm__:
