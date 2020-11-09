@@ -320,6 +320,20 @@ class __NanonisFile_3ds__:
         self.header = header_dict
 
     def __3ds_data_reader__(self, f_path, header):
+        """
+        __3ds_data_reader__:
+        read the .3ds file
+        
+        Parameters
+        ----------
+        f_path : path of .3ds file
+        header: reformed header of .3ds file
+        
+        Return
+        ------
+        Parameters : values of parameters of every position, return (position, num_parameters) np.array
+        data : specscopies, returns (position, channels, points) np.array
+        """
         with open(f_path, 'rb') as f:
             read_all = f.read()
             offset = read_all.find(
@@ -340,6 +354,8 @@ class __NanonisFile_3ds__:
             # Read spec data
             for k in range(header['num_Channels']):
                 for l in range(header['Points']):
-                    spec_data[i][k][l] = data[int((i * header['Experiment size (bytes)'] / 4 + 12) + (k * header['Points']) + l)]
+                    spec_data[i][k][l] = data[
+                        int((i * header['Experiment size (bytes)'] / 4 + 12) +
+                            (k * header['Points']) + l)]
         self.Parameters = Parameters
         self.data = spec_data
