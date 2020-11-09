@@ -22,6 +22,113 @@ def read_file(f_path):
     #     print('File type not supported.')
 
 
+def sxm_path_list(folder_path):
+    """
+    parameter
+    ---------
+    foler_path : path of folder
+
+    return
+    ------
+    path_ls : list of paths of files inside folder 
+    """
+    extensiton_list = ['.sxm']
+    path_ls = []
+    # path_dict = {}
+    file_ls = os.listdir(folder_path)
+    for i in range(len(file_ls)):
+        if file_ls[i][-4:] not in extensiton_list:
+            continue
+        else:
+            path_ls.append(os.path.join(folder_path, file_ls[i]))
+    del file_ls
+    path_ls.sort()
+    return path_ls
+
+
+def dat_path_list(folder_path):
+    """
+    parameter
+    ---------
+    foler_path : path of folder
+
+    return
+    ------
+    path_ls : list of paths of files inside folder 
+    """
+    extensiton_list = ['.dat']
+    path_ls = []
+    # path_dict = {}
+    file_ls = os.listdir(folder_path)
+    for i in range(len(file_ls)):
+        if file_ls[i][-4:] not in extensiton_list:
+            continue
+        else:
+            path_ls.append(os.path.join(folder_path, file_ls[i]))
+    del file_ls
+    path_ls.sort()
+    return path_ls
+
+
+def grid_path_list(folder_path):
+    """
+    parameter
+    ---------
+    foler_path : path of folder
+
+    return
+    ------
+    path_ls : list of paths of files inside folder 
+    """
+    extensiton_list = ['.3ds']
+    path_ls = []
+    # path_dict = {}
+    file_ls = os.listdir(folder_path)
+    for i in range(len(file_ls)):
+        if file_ls[i][-4:] not in extensiton_list:
+            continue
+        else:
+            path_ls.append(os.path.join(folder_path, file_ls[i]))
+    del file_ls
+    path_ls.sort()
+    return path_ls
+
+
+def topo_extent(header):
+    """
+    Calculate position of topograph.
+    
+    Parameter
+    ---------
+    header : reformed header of .sxm
+    
+    Return
+    ------
+    position tuple (left[X], right[X], bottom[Y], top[Y]) 
+    """
+    center_X = header['SCAN_FILED']['X_OFFSET']
+    center_Y = header['SCAN_FILED']['Y_OFFSET']
+    range_X = header['SCAN_FILED']['X_RANGE']
+    range_Y = header['SCAN_FILED']['Y_RANGE']
+    return (center_X - range_X / 2, center_X + range_X / 2,
+            center_Y - range_Y / 2, center_Y + range_Y / 2)
+
+
+# def read_save_time(fname_ls=[]):
+#     times = {}
+#     for i in range(len(fname_ls)):
+#         if fname_ls[i][-4:] == '.dat':
+#             f = read_file(fname_ls[i])
+#             times['{}'.format(i + 1).zfill(3)] = f.header['Saved Date']
+#         elif fname_ls[i][-4:] == '.3ds':
+#             f = read_file(fname_ls[i])
+#             times['{}'.format(i + 1).zfill(3)] = f.header['End time']
+#         else:
+#             f = read_file(fname_ls[i])
+#             times['{}'.format(i + 1).zfill(3)] = f.header['REC_TIME']
+#     return times
+
+
 class __NanonisFile_sxm__:
     """
     Nanonis File Class
@@ -355,7 +462,9 @@ class __NanonisFile_3ds__:
             for k in range(header['num_Channels']):
                 for l in range(header['Points']):
                     spec_data[i][k][l] = data[
-                        int((i * header['Experiment size (bytes)'] / 4 + 12) +
-                            (k * header['Points']) + l)]
+                        int(i * (header['Experiment size (bytes)'] / 4 +
+                                 header['# Parameters (4 byte)']) +
+                            (k * header['Points'] +
+                             header['# Parameters (4 byte)']) + l)]
         self.Parameters = Parameters
         self.data = spec_data
