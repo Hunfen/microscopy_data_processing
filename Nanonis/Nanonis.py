@@ -10,6 +10,8 @@ def read_file(f_path):
         return __NanonisFile_sxm__(f_path)
     elif os.path.splitext(f_path)[1] == '.dat':
         return __NanonisFile_dat__(f_path)
+    elif os.path.splitext(f_path)[1] == '.3ds':
+        return __NanonisFile_3ds__(f_path)
     else:
         print("File type not supported.")
     # switch = {'.sxm': lambda x:__NanonisFile_sxm__(x),
@@ -82,14 +84,14 @@ class __NanonisFile_sxm__:
         for j in range(len(scan_info_str)):
             header_dict[scan_info_str[j]] = header_dict[
                 scan_info_str[j]].strip(' ')
-        # # Transform scan_info_float from str to float
+        # Transform scan_info_float from str to float
         for k in range(len(scan_info_float)):
             header_dict[scan_info_float[k]] = float(
                 header_dict[scan_info_float[k]])
         # Transform table from str to dict
         # SCAN_FIELD
         scan_field = header_dict['Scan>Scanfield'].split(';')
-        #  SCAN_FIELD dict
+        # SCAN_FIELD dict
         SCAN_FIELD = {}
         for m in range(len(scan_field_key)):
             SCAN_FIELD[scan_field_key[m]] = float(scan_field[m])
@@ -176,7 +178,6 @@ class __NanonisFile_dat__:
     def __init__(self, f_path):
         self.file_path = os.path.split(f_path)[0]
         self.fname = os.path.split(f_path)[1]
-        # self.raw_header = self.__dat_header_reader(f_path)
         self.__dat_header_reader__(f_path)
         self.__dat_header_reform__(self.raw_header)
         self.__dat_data_reader__(f_path)
@@ -239,3 +240,106 @@ class __NanonisFile_dat__:
         for i in range(len(data_str)):
             data_list.append(data_str[i].split('\t'))
         self.data = np.array(data_list).astype(float)
+
+
+class __NanonisFile_3ds__:
+    def __init__(self, f_path):
+        self.file_path = os.path.split(f_path)[0]
+        self.fname = os.path.split(f_path)[1]
+        self.__3ds_header_reader__(f_path)
+        self.__3ds_header_reform__(self.raw_header)
+        self.__3ds_data_reader__(f_path, self.header)
+
+    def __3ds_header_reader__(self, f_path):
+        key = ''
+        contents = ''
+        raw_header = {}
+        with open(f_path, 'rb') as f:
+            header_end = False
+            while not header_end:
+                line = f.readline().decode(encoding='utf-8', errors='replace')
+                if re.match(':HEADER_END:', line):
+                    header_end = True
+                else:
+                    key, contents = line.split('=')
+                    contents = contents.strip('"\r\n')
+                raw_header[key] = contents
+        self.raw_header = raw_header
+
+    def __3ds_header_reform__(self, raw_header):
+        # table = ['Grid settings', 'Channels']
+        parameters = ['Fixed parameters', 'Experiment parameters']
+        # spec_info_str = ['Filetype', 'Sweep Signal', 'Experiment', 'Start time', 'End time', 'User', 'Comment']
+        spec_info_int = [
+            '# Parameters (4 byte)', 'Experiment size (bytes)', 'Points'
+        ]
+        grid_settings = ['X_OFFSET', 'Y_OFFSET', 'X_RANGE', 'Y_RANGE', 'ANGLE']
+        header_dict = {}
+        keys = list(raw_header.keys())
+        for i in range(len(keys)):
+            header_dict[keys[i]] = raw_header[keys[i]]
+        # spec_info_int
+        for j in range(len(spec_info_int)):
+            header_dict[spec_info_int[j]] = int(header_dict[spec_info_int[j]])
+        # Delay before measuring (s)
+        header_dict['Delay before measuring (s)'] = float(
+            header_dict['Delay before measuring (s)'])
+        # Grid dim
+        dims = header_dict['Grid dim'].split('x')
+        grid_tuple = (int(dims[0]), int(dims[1]))
+        grid_check = True
+        for k in (0, 1):
+            if dims[k] == 1:
+                grid_check = False
+        header_dict['Grid dim'] = grid_tuple
+        # Grid settings
+        if grid_check:
+            grid_settings_dict = {}
+            grid_settings_ls = header_dict['Grid settings'].split(';')
+            for i in range(len(grid_settings_ls)):
+                grid_settings_dict[grid_settings[i]] = float(
+                    grid_settings_ls[i])
+            header_dict['Grid settings'] = grid_settings_dict
+        else:
+            header_dict['Grid settings'] = None
+        # Parameters
+        fixed_parameter = header_dict['Fixed parameters'].split(';')
+        experiment_parameters = header_dict['Experiment parameters'].split(';')
+        Parameter = []
+        for i in range(len(fixed_parameter)):
+            Parameter.append(fixed_parameter[i])
+        for j in range(len(experiment_parameters)):
+            Parameter.append(experiment_parameters[j])
+        header_dict['Parameters'] = Parameter
+        for k in parameters:
+            del header_dict[k]
+        # Channels
+        header_dict['Channels'] = header_dict['Channels'].split(';')
+        # Number of channels
+        header_dict['num_Channels'] = len(header_dict['Channels'])
+        self.header = header_dict
+
+    def __3ds_data_reader__(self, f_path, header):
+        with open(f_path, 'rb') as f:
+            read_all = f.read()
+            offset = read_all.find(
+                ':HEADER_END:\x0d\x0a'.encode(encoding='utf-8'))
+            # print('found start at {}'.format(offset))
+            f.seek(offset + 14)
+            data = np.fromfile(f, dtype='>f')
+        Parameters = np.zeros((header['Grid dim'][0] * header['Grid dim'][1],
+                               header['# Parameters (4 byte)']))
+        spec_data = np.zeros((header['Grid dim'][0] * header['Grid dim'][1],
+                              header['num_Channels'], header['Points']))
+        for i in range(header['Grid dim'][0] * header['Grid dim'][1]):
+            # Read Parameters
+            for j in range(header['# Parameters (4 byte)']):
+                Parameters[i][j] = data[
+                    i * int(header['# Parameters (4 byte)'] +
+                            header['Experiment size (bytes)'] / 4) + j]
+            # Read spec data
+            for k in range(header['num_Channels']):
+                for l in range(header['Points']):
+                    spec_data[i][k][l] = data[int((i * header['Experiment size (bytes)'] / 4 + 12) + (k * header['Points']) + l)]
+        self.Parameters = Parameters
+        self.data = spec_data
