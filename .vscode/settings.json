@@ -1,8 +1,8 @@
 {
-    "python.dataScience.jupyterServerURI": "local",
     "python.pythonPath": "/usr/local/bin/python3",
     "python.linting.flake8Enabled": false,
     "python.linting.enabled": true,
     "python.linting.pylintEnabled": true,
-    "python.linting.pycodestyleEnabled": false
+    "python.linting.pycodestyleEnabled": false,
+    "jupyter.jupyterServerType": "local"
 }
