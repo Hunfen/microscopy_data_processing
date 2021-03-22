@@ -410,6 +410,37 @@ class __NanonisFile_3ds__:
             header_dict['Grid settings'] = grid_settings_dict
         else:
             header_dict['Grid settings'] = None
+        
+        # Modules
+        module_keys = []
+        module_parameter_keys = []
+        module_parameter_values = []
+        index = []
+        for i in range(len(keys)):
+            contents = []
+            if re.match('.+\>.+', keys[i]):
+                contents = re.split('\>', keys[i])
+                index.append(i)
+                module_keys.append(contents[0])
+                module_parameter_keys.append(contents[1])
+                module_parameter_values.append(raw_header[keys[i]])
+            else:
+                continue
+        module_keys_sort = list(set(module_keys))
+        module_dict = {}
+
+        for i in range(len(module_keys_sort)):
+            module_parameter_dict = {}
+            for j in range(len(module_keys)):
+                if module_keys[j] == module_keys_sort[i]:
+                    module_parameter_dict.update({module_parameter_keys[j] : module_parameter_values[j]})
+                else:
+                    continue
+            module_dict.update({module_keys_sort[i] : module_parameter_dict})
+        for k in range(len(index)):
+            del header_dict[keys[index[k]]]
+        header_dict['Modules'] = module_dict
+        
         # Parameters
         fixed_parameter = header_dict['Fixed parameters'].split(';')
         experiment_parameters = header_dict['Experiment parameters'].split(';')
