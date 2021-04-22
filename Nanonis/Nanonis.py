@@ -2,11 +2,19 @@ import math
 import os
 import re
 
-
 import numpy as np
 
 
 def read_file(f_path):
+    """
+    parameter
+    ---------
+    f_path : path of file, whose type could be .sxm, .dat & .3ds
+    
+    return
+    ------
+    Nanonis file class 
+    """
     if os.path.splitext(f_path)[1] == '.sxm':
         return __NanonisFile_sxm__(f_path)
     elif os.path.splitext(f_path)[1] == '.dat':
@@ -21,99 +29,6 @@ def read_file(f_path):
     #     switch[os.path.splitext(f_path)[1]](f_path)
     # except KeyError as e:
     #     print('File type not supported.')
-
-
-def sxm_path_list(folder_path):
-    """
-    parameter
-    ---------
-    foler_path : path of folder
-
-    return
-    ------
-    path_ls : list of paths of files inside folder 
-    """
-    extensiton_list = ['.sxm']
-    path_ls = []
-    # path_dict = {}
-    file_ls = os.listdir(folder_path)
-    for i in range(len(file_ls)):
-        if file_ls[i][-4:] not in extensiton_list:
-            continue
-        else:
-            path_ls.append(os.path.join(folder_path, file_ls[i]))
-    del file_ls
-    path_ls.sort()
-    return path_ls
-
-
-def dat_path_list(folder_path):
-    """
-    parameter
-    ---------
-    foler_path : path of folder
-
-    return
-    ------
-    path_ls : list of paths of files inside folder 
-    """
-    extensiton_list = ['.dat']
-    path_ls = []
-    # path_dict = {}
-    file_ls = os.listdir(folder_path)
-    for i in range(len(file_ls)):
-        if file_ls[i][-4:] not in extensiton_list:
-            continue
-        else:
-            path_ls.append(os.path.join(folder_path, file_ls[i]))
-    del file_ls
-    path_ls.sort()
-    return path_ls
-
-
-def grid_path_list(folder_path):
-    """
-    parameter
-    ---------
-    foler_path : path of folder
-
-    return
-    ------
-    path_ls : list of paths of files inside folder 
-    """
-    extensiton_list = ['.3ds']
-    path_ls = []
-    # path_dict = {}
-    file_ls = os.listdir(folder_path)
-    for i in range(len(file_ls)):
-        if file_ls[i][-4:] not in extensiton_list:
-            continue
-        else:
-            path_ls.append(os.path.join(folder_path, file_ls[i]))
-    del file_ls
-    path_ls.sort()
-    return path_ls
-
-
-def topo_extent(header):
-    """
-    Calculate position of topograph.
-    
-    Parameter
-    ---------
-    header : reformed header of .sxm
-    
-    Return
-    ------
-    position tuple (left[X], right[X], bottom[Y], top[Y]) 
-    """
-    center_X = header['SCAN_FILED']['X_OFFSET']
-    center_Y = header['SCAN_FILED']['Y_OFFSET']
-    range_X = header['SCAN_FILED']['X_RANGE']
-    range_Y = header['SCAN_FILED']['Y_RANGE']
-    return (center_X - range_X / 2, center_X + range_X / 2,
-            center_Y - range_Y / 2, center_Y + range_Y / 2)
-
 
 # def read_save_time(fname_ls=[]):
 #     times = {}
@@ -140,7 +55,7 @@ class __NanonisFile_sxm__:
         self.__sxm_header_reader__(f_path)
         self.__sxm_header_reform__(self.raw_header)
         self.__sxm_channel_counts__(self.header)
-        self.__sxm_data_reader__(f_path, self.header)
+        self.__sxm_data_reader__(f_path, self.header, self.dims)
 
     def __sxm_header_reader__(self, f_path):
         key = ''
@@ -245,14 +160,16 @@ class __NanonisFile_sxm__:
         for i in range(len(channels)):
             if header['CHANNEL_INFO'][channels[i]]['Direction'] == 'both':
                 num_channels += 2
+                dims = (num_channels / 2, 2, int(header['Scan>pixels/line']),
+                int(header['Scan>lines']))
             else:
                 num_channels += 1
-        dims = (num_channels, int(header['Scan>pixels/line']),
+                dims = (num_channels, 1, int(header['Scan>pixels/line']),
                 int(header['Scan>lines']))
         self.num_channels = num_channels
         self.dims = dims
 
-    def __sxm_data_reader__(self, f_path, header):
+    def __sxm_data_reader__(self, f_path, header, dims):
         # Find the start of data
         with open(f_path, 'rb') as f:
             read_all = f.read()
@@ -268,13 +185,15 @@ class __NanonisFile_sxm__:
                 check = True
                 break
         if check:
-            data_shaped = data.reshape(
-                (len(header['CHANNEL_INFO']), 2, int(math.sqrt(data.size / 4)),
-                 int(math.sqrt(data.size / 4))))
+            data_shaped = data.reshape((int(dims[0]), int(dims[1]), int(dims[2]), int(dims[3])))
+            # data_shaped = data.reshape(
+            #     (len(header['CHANNEL_INFO']), 2, int(math.sqrt(data.size / 4)),
+            #      int(math.sqrt(data.size / 4))))
         else:
-            data_shaped = data.reshape(
-                (len(header['CHANNEL_INFO']), 1, int(math.sqrt(data.size / 4)),
-                 int(math.sqrt(data.size / 4))))
+            data_shaped = data.reshape(int(dims))
+            # data_shaped = data.reshape(
+            #     (len(header['CHANNEL_INFO']), 1, int(math.sqrt(data.size / 4)),
+            #      int(math.sqrt(data.size / 4))))
         for i in range(len(data_shaped)):
             for j in range(len(data_shaped[i])):
                 if not j % 2 == 0:
@@ -410,7 +329,7 @@ class __NanonisFile_3ds__:
             header_dict['Grid settings'] = grid_settings_dict
         else:
             header_dict['Grid settings'] = None
-        
+
         # Modules
         module_keys = []
         module_parameter_keys = []
@@ -433,14 +352,15 @@ class __NanonisFile_3ds__:
             module_parameter_dict = {}
             for j in range(len(module_keys)):
                 if module_keys[j] == module_keys_sort[i]:
-                    module_parameter_dict.update({module_parameter_keys[j] : module_parameter_values[j]})
+                    module_parameter_dict.update(
+                        {module_parameter_keys[j]: module_parameter_values[j]})
                 else:
                     continue
-            module_dict.update({module_keys_sort[i] : module_parameter_dict})
+            module_dict.update({module_keys_sort[i]: module_parameter_dict})
         for k in range(len(index)):
             del header_dict[keys[index[k]]]
         header_dict['Modules'] = module_dict
-        
+
         # Parameters
         fixed_parameter = header_dict['Fixed parameters'].split(';')
         experiment_parameters = header_dict['Experiment parameters'].split(';')
@@ -484,19 +404,24 @@ class __NanonisFile_3ds__:
                                header['# Parameters (4 byte)']))
         spec_data = np.zeros((header['Grid dim'][0] * header['Grid dim'][1],
                               header['num_Channels'], header['Points']))
-        for i in range(header['Grid dim'][0] * header['Grid dim'][1]):
-            # Read Parameters
-            for j in range(header['# Parameters (4 byte)']):
-                Parameters[i][j] = data[
-                    i * int(header['# Parameters (4 byte)'] +
-                            header['Experiment size (bytes)'] / 4) + j]
-            # Read spec data
-            for k in range(header['num_Channels']):
-                for l in range(header['Points']):
-                    spec_data[i][k][l] = data[
-                        int(i * (header['Experiment size (bytes)'] / 4 +
-                                 header['# Parameters (4 byte)']) +
-                            (k * header['Points'] +
-                             header['# Parameters (4 byte)']) + l)]
+        #  integrity check
+        if data.size == header['Grid dim'][0] * header['Grid dim'][1] * (header['# Parameters (4 byte)'] + header['Experiment size (bytes)'] / 4):
+            self.integrity = True
+            for i in range(header['Grid dim'][0] * header['Grid dim'][1]):
+                # Read Parameters
+                for j in range(header['# Parameters (4 byte)']):
+                    Parameters[i][j] = data[
+                        i * int(header['# Parameters (4 byte)'] +
+                                header['Experiment size (bytes)'] / 4) + j]
+                # Read spec data
+                for k in range(header['num_Channels']):
+                    for l in range(header['Points']):
+                        spec_data[i][k][l] = data[
+                            int(i * (header['Experiment size (bytes)'] / 4 +
+                                     header['# Parameters (4 byte)']) +
+                                (k * header['Points'] +
+                                 header['# Parameters (4 byte)']) + l)]
+        else : 
+            self.integrity = False
         self.Parameters = Parameters
         self.data = spec_data

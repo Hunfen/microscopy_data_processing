@@ -1,41 +1,33 @@
-def __3ds_data_reader__(self, f_path, header):
-    """
-        __3ds_data_reader__:
-        read the .3ds file
-        
-        Parameters
-        ----------
-        f_path : path of .3ds file
-        header: reformed header of .3ds file
-        
-        Return
-        ------
-        Parameters : values of parameters of every position, return (position, num_parameters) np.array
-        data : specscopies, returns (position, channels, points) np.array
-        """
-    with open(f_path, 'rb') as f:
-        read_all = f.read()
-        offset = read_all.find(':HEADER_END:\x0d\x0a'.encode(encoding='utf-8'))
-        # print('found start at {}'.format(offset))
-        f.seek(offset + 14)
-        data = np.fromfile(f, dtype='>f')
-    Parameters = np.zeros((header['Grid dim'][0] * header['Grid dim'][1],
-                           header['# Parameters (4 byte)']))
-    spec_data = np.zeros((header['Grid dim'][0] * header['Grid dim'][1],
-                          header['num_Channels'], header['Points']))
-    for i in range(header['Grid dim'][0] * header['Grid dim'][1]):
-        # Read Parameters
-        for j in range(header['# Parameters (4 byte)']):
-            Parameters[i][j] = data[
-                i * int(header['# Parameters (4 byte)'] +
-                        header['Experiment size (bytes)'] / 4) + j]
-        # Read spec data
-        for k in range(header['num_Channels']):
-            for l in range(header['Points']):
-                spec_data[i][k][l] = data[int(
-                    i * (header['Experiment size (bytes)'] / 4 +
-                         header['# Parameters (4 byte)']) +
-                    (k * header['Points'] + header['# Parameters (4 byte)']) +
-                    l)]
-    self.Parameters = Parameters
-    self.data = spec_data
+from utility import *
+from matplotlib import animation as anm
+
+bias_7, specs_7, z_7 = mapping('/Users/hunfen/OneDrive/General Files/ゼミー/20210401/2021-03-15/Grid Spectroscopy017.3ds', full = True)
+bias, specs, z = mapping('/Users/hunfen/OneDrive/General Files/ゼミー/20210401/2021-03-15/Grid Spectroscopy007.3ds', full = True)
+
+fig, axis = plt.subplots(1, 2, figsize = (10, 5))
+
+def update(i):
+    if i != 0:
+        plt.cla()                      # 現在描写されているグラフを消去
+
+    axis[0].imshow(specs_7[i], cmap = 'viridis')
+    axis[0].text(0, 5, str(round(bias_7[i] * 1e3 - 8, 1)) + r'$\mathrm{mV}$', fontsize = 'large', color = 'white')
+
+    if i in [0, 67, 133, 200, 267, 333, 401]:
+        axis[1].imshow(specs[i], cmap = 'viridis')
+        axis[1].text(0, 5, str(round(bias[i] * 1e3 - 8, 1)) + r'$\mathrm{mV}$', fontsize = 'large', color = 'white')
+    axis[0].axis('off')
+    axis[1].axis('off')
+
+fig.tight_layout()
+ani = anm.FuncAnimation(fig, update, interval = 50, frames = 401, repeat_delay = 5000)
+ani.save('/Users/hunfen/OneDrive/General Files/ゼミー/20210401/0T_mapping.gif', writer = 'Pillow');
+
+
+import numpy as np
+
+d = 0
+delta_h = 0
+Lambda = 1.0
+pi = 3.1415926
+0.5 * np.log((np.pi * 0.5) * (0.5 * np.log((np.pi * d) / (2 * Lambda)) + np.log(delta_h))) + np.log(delta_h) - d / Lambda
